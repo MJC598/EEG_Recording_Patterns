@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import train_ssm
 import csv
+import random
 
 def make_stationary(dataset):
     '''Returns transformed dataset that is stationary.'''
@@ -170,27 +171,48 @@ def convert_dataset():
     # generate samples
     # input_stationary_data = (130,8,260)
     # stationary_FCz_theta  = (130,4,260)
-    all_data = []
-    all_labels = []
-    for i in range(feedback_onset_FCz_theta.shape[0]):
+    random.seed(10)
+    temp_indices = range(130)
+    training_indices = random.sample(temp_indices, 104)
+    training_data = []
+    training_labels = []
+    for i in training_indices:
         # current_data = (num_samples,8,num_lags)
         # current_labels = (num_samples,4)
         current_data,current_labels = multivariate_data(input_stationary_data[i],stationary_FCz_theta[i],start_index=0,history_size=5,target_size=1,step=1,single_step=True)
-        all_data += current_data
-        all_labels += current_labels
+        training_data += current_data
+        training_labels += current_labels
+    training_data = np.array(training_data)
+    training_labels = np.array(training_labels)
 
-    all_data = np.array(all_data)
-    all_labels = np.array(all_labels)
 
-    print(all_data.shape)
-    print(all_labels.shape)
+    testing_indices = [x for x in temp_indices if x not in training_indices]
+    testing_data = []
+    testing_labels = []
+    for i in testing_indices:
+        # current_data = (num_samples,8,num_lags)
+        # current_labels = (num_samples,4)
+        current_data,current_labels = multivariate_data(input_stationary_data[i],stationary_FCz_theta[i],start_index=0,history_size=5,target_size=1,step=1,single_step=True)
+        testing_data += current_data
+        testing_labels += current_labels
+    testing_data = np.array(testing_data)
+    testing_labels = np.array(testing_labels)
 
-    np.savez('eeg_dataset', x=all_data, y=all_labels)
+    print(training_data.shape)
+    print(training_labels.shape)
+    print(testing_data.shape)
+    print(testing_labels.shape)
+
+    training_data = np.transpose(training_data,[0,2,1])
+    testing_data = np.transpose(testing_data,[0,2,1])
+
+    np.savez('eeg_dataset_training2', x=training_data, y=training_labels)
+    np.savez('eeg_dataset_testing2', x=testing_data, y=testing_labels)
 
 def load_dataset(dataset_filepath):
     dataset = np.load(dataset_filepath)
-    print(dataset['x'].shape)
-    print(dataset['y'].shape)
+
+    return dataset
 
 if __name__ == "__main__":
-    load_dataset("eeg_dataset.npz")
+    convert_dataset()
