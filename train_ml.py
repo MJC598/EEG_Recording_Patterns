@@ -3,9 +3,9 @@ import numpy as np
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 
-class myRNN(nn.Module):
+class baselineRNN(nn.Module):
     def __init__(self,input_size,hidden_size,batch_size,batch_first):
-        super(myRNN, self).__init__()
+        super(baselineRNN, self).__init__()
         self.rnn1 = nn.RNN(input_size,hidden_size,batch_first=batch_first)
         self.lin = nn.Linear(hidden_size,4)
         self.h0 = torch.randn(1, batch_size, hidden_size)
@@ -18,9 +18,9 @@ class myRNN(nn.Module):
 
         return out
 
-class myLSTM(nn.Module):
+class baselineLSTM(nn.Module):
     def __init__(self,input_size,hidden_size,batch_size,batch_first):
-        super(myLSTM, self).__init__()
+        super(baselineLSTM, self).__init__()
         self.rnn = nn.LSTM(input_size,hidden_size,batch_first=batch_first)
         self.lin = nn.Linear(hidden_size,4)
         self.h0 = torch.randn(1, batch_size, hidden_size)
@@ -34,9 +34,9 @@ class myLSTM(nn.Module):
 
         return out
 
-class myGRU(nn.Module):
+class baselineGRU(nn.Module):
     def __init__(self,input_size,hidden_size,batch_size,batch_first):
-        super(myGRU, self).__init__()
+        super(baselineGRU, self).__init__()
         self.rnn = nn.GRU(input_size,hidden_size,batch_first=batch_first)
         self.lin = nn.Linear(hidden_size,4)
         self.h0 = torch.randn(1, batch_size, hidden_size)
@@ -59,7 +59,7 @@ def get_dataset(data_filepath):
 
     return dataset
 
-def train_model(model,training_loader,validation_loader):
+def train_model(model,save_filepath,training_loader,validation_loader):
 
     training_len = len(training_loader.dataset)
     validation_len = len(validation_loader.dataset)
@@ -102,15 +102,15 @@ def train_model(model,training_loader,validation_loader):
         # print('[%d, %5d] train loss: %.6f val loss: %.6f' % (epoch + 1, i + 1, train_loss/training_len, val_loss/validation_len))
         # shows total loss
         print('[%d, %5d] train loss: %.6f val loss: %.6f' % (epoch + 1, i + 1, train_loss, val_loss))
-
-
+    
+    torch.save(model, save_filepath)
 
 if __name__ == "__main__":
     input_size = 8
     hidden_size = 64
     batch_first = True
     batch_size = 52
-    model = myGRU(input_size,hidden_size,batch_size,batch_first)
+    model = baselineLSTM(input_size,hidden_size,batch_size,batch_first)
 
     training_dataset = get_dataset('eeg_dataset_training2.npz')
     training_loader = DataLoader(dataset=training_dataset,batch_size=batch_size,shuffle=True)
@@ -118,4 +118,5 @@ if __name__ == "__main__":
     validation_dataset = get_dataset('eeg_dataset_testing2.npz')
     validation_loader = DataLoader(dataset=validation_dataset,batch_size=batch_size)
 
-    train_model(model,training_loader,validation_loader)
+    PATH = 'baselineLSTM.pth'
+    train_model(model,PATH,training_loader,validation_loader)
