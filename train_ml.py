@@ -49,6 +49,30 @@ class baselineGRU(nn.Module):
 
         return out
 
+class baselineFCNLSTM(nn.Module):
+    def __init__(self,input_size,hidden_size,batch_size,batch_first):
+        super(baselineFCNLSTM, self).__init__()
+        self.conv1d_l1 = nn.Conv1d(128,256,8,stride=1)
+        self.conv1d_l2 = nn.Conv1d(256,128,5,stride=1)
+        self.conv1d_l3 = nn.Conv1d(128,128,3,stride=1)
+        self.batchNorm_l1 = nn.BatchNorm1d(256, eps=0.001, momentum=0.99)
+        self.batchNorm_l2 = nn.BatchNorm1d(128, eps=0.001, momentum=0.99)
+        self.relu = nn.ReLU()
+        self.pooling = nn.AvgPool1d(input_size)
+        self.lstm = nn.LSTM(input_size,hidden_size,batch_first=batch_first)
+        self.h0 = torch.randn(1, batch_size, hidden_size)
+        self.c0 = torch.randn(1, batch_size, hidden_size)
+        self.sm = nn.Softmax()
+
+    def forward(self, x):
+        y, (h_n, c_n)  = self.lstm(x,(self.h0,self.c0))
+        x = self.relu(self.batchNorm_l1(self.conv1d_l1(x)))
+        x = self.relu(self.batchNorm_l2(self.conv1d_l2(x)))
+        x = self.relu(self.batchNorm_l2(self.conv1d_l3(x)))
+        x = self.pooling(x)
+        out = self.sm(torch.cat(x, y))
+        return out
+
 def get_dataset(data_filepath):
     data = np.load(data_filepath)
 
@@ -110,7 +134,8 @@ if __name__ == "__main__":
     hidden_size = 64
     batch_first = True
     batch_size = 52
-    model = baselineLSTM(input_size,hidden_size,batch_size,batch_first)
+    # model = baselineLSTM(input_size,hidden_size,batch_size,batch_first)
+    model = baselineFCNLSTM(input_size,hidden_size,batch_size,batch_first)
 
     training_dataset = get_dataset('eeg_dataset_training2.npz')
     training_loader = DataLoader(dataset=training_dataset,batch_size=batch_size,shuffle=True)
