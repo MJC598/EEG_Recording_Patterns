@@ -51,13 +51,19 @@ Various types of models were attempted. In addition to the currently working [mo
 Overall, the baselineGRU model performed the best in predicting targeted values where RNN performed the worst. The graphs are shown below:
 
 ![RNN Test Predictions versus Targets](/graphs/RNN_test_preds_vs_targets.png)
+The RNN Testing Dataset Predicition Versus Targets
 
 ![RNN Train Predictions versus Targets](/graphs/RNN_train_preds_vs_targets.png)
+The RNN Training Dataset Prediction Versus Targets
 
 ![GRU Test Predictions versus Targets](/graphs/GRU_test_preds_vs_targets.png)
+The GRU Testing Dataset Predicition Versus Targets
 
 ![GRU Train Predictions versus Targets](/graphs/GRU_train_preds_vs_targets.png)
+The GRU Training Dataset Prediction Versus Targets
 
 ![LSTM Test Predictions versus Targets](/graphs/LSTM_test_preds_vs_targets.png)
+The LSTM Testing Dataset Predicition Versus Targets
 
 ![LSTM Train Predictions versus Targets](/graphs/LSTM_train_preds_vs_targets.png)
+The LSTM Training Dataset Prediction Versus Targets
