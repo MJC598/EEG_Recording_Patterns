@@ -135,7 +135,9 @@ if __name__ == "__main__":
     batch_first = True
     batch_size = 52
     # model = baselineLSTM(input_size,hidden_size,batch_size,batch_first)
-    model = baselineFCNLSTM(input_size,hidden_size,batch_size,batch_first)
+    # model = baselineGRU(input_size,hidden_size,batch_size,batch_first)
+    model = baselineRNN(input_size,hidden_size,batch_size,batch_first)
+    # model = baselineFCNLSTM(input_size,hidden_size,batch_size,batch_first)
 
     training_dataset = get_dataset('eeg_dataset_training2.npz')
     training_loader = DataLoader(dataset=training_dataset,batch_size=batch_size,shuffle=True)
@@ -143,5 +145,8 @@ if __name__ == "__main__":
     validation_dataset = get_dataset('eeg_dataset_testing2.npz')
     validation_loader = DataLoader(dataset=validation_dataset,batch_size=batch_size)
 
-    PATH = 'baselineLSTM.pth'
+    # PATH = 'baselineLSTM.pth'
+    # PATH = 'baselineGRU.pth'
+    PATH = 'baselineRNN.pth'
+    # PATH = 'baselineFCNLSTM.pth'
     train_model(model,PATH,training_loader,validation_loader)

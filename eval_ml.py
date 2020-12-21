@@ -25,13 +25,13 @@ def evaluate_model(my_model,test_loader,frequency,interval):
     plt.plot(target_outputs.detach().numpy()[:interval][:,frequency], color="blue", label='target')
     plt.plot(predictions.detach().numpy()[:interval][:,frequency], color="red", label='predictions')
     plt.legend(loc='best')
-    plt.title('eeg theta perdictions vs target values')
+    plt.title('eeg theta predictions vs target values')
     plt.show()
         
 
 if __name__ == "__main__":
 
-    model_path = 'net.pth'
+    model_path = 'baselineRNN.pth'
     my_model = get_model(model_path)
 
     batch_size = 52
