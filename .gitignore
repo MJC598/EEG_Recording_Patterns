@@ -5,6 +5,11 @@ __pycache__/
 
 *.pth
 
+*.docx
+
+matlab/
+csvs/
+
 # C extensions
 *.so
 

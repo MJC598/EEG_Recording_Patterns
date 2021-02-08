@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import train_ssm
 import csv
 import random
+import pandas as pds
 
 def make_stationary(dataset):
     '''Returns transformed dataset that is stationary.'''
@@ -33,20 +34,27 @@ def get_TLCC(dataset1,dataset2,lag=0):
 
 def get_corr_data():
 
-    DATA_FOLDER_PATH = 'D:\power_out2\LNR\evoked'
-    FCz_data = scipy.io.loadmat(DATA_FOLDER_PATH + "/" + "POWevoked_leftnorew_FCz.mat")
-
+    DATA_FOLDER_PATH = '/home/matt/eeg_data/power/RR/evoked'
+    FCz_data = scipy.io.loadmat(DATA_FOLDER_PATH + "/" + "POWevoked_rightrew_FCz.mat")
+    print(FCz_data.keys())
+    # print(FCz_data)
     eeg_data = []
     eeg_filenames = []
     counter = 0
     for f in os.listdir(DATA_FOLDER_PATH):
 
-        if 'FCz' in f:
+        if 'FCz' in f or 'topomaps' in f or 'workspace' in f:
             continue
+        elif counter <= 29:
+            pass
         else:
+            print('Recording Filenames')
+            print(f)
             eeg_filenames.append(f)
             eeg_data.append(scipy.io.loadmat(DATA_FOLDER_PATH + "/" + f))
             
+        if counter == 39:
+            break
         counter += 1
         print(counter)
 
@@ -64,6 +72,7 @@ def get_corr_data():
     node_region_list = []
     for node_index,node_region in enumerate(eeg_data):
         print(str(node_index))
+        print(node_region.keys())
         for sub_index, subject in enumerate(node_region['POW_evoked']):
             # print(str(sub_index))
             for freq_index, freq in enumerate(subject):
@@ -86,7 +95,7 @@ def get_corr_data():
     # Time lagged cross correlation (TLCC) can identify directionality between two signals such as 
     # a leader-follower relationship in which the leader initiates a response which is repeated by the follower.
     # (does not identify causality)
-    with open('eeg_correlations2.csv', mode='w', newline='') as eeg_file:
+    with open('eeg_correlations_RRevoked4.csv', mode='w', newline='') as eeg_file:
         eeg_writer = csv.writer(eeg_file, delimiter=',')
 
         eeg_writer.writerow(['node_region_filename', 'subject_index', 'subject_freq', 'theta_freq', 'tlcc'])
@@ -214,5 +223,99 @@ def load_dataset(dataset_filepath):
 
     return dataset
 
+def crop_tlcc_data(csv_file):
+    tlcc_max_list = []
+    time_lag_list = []
+    df = pds.read_csv(csv_file)
+    tlcc_df = df['tlcc'].to_list()
+    for l in tlcc_df:
+        tlcc_vals = [float(val) for val in l.split(",")]
+        if max(tlcc_vals) >= abs(min(tlcc_vals)):
+            tlcc_max_list.append(max(tlcc_vals))
+            time_lag_list.append(tlcc_vals.index(max(tlcc_vals)))
+        else:
+            tlcc_max_list.append(min(tlcc_vals))
+            time_lag_list.append(tlcc_vals.index(min(tlcc_vals)))
+    df['tlcc'] = tlcc_max_list
+    df['lag'] = time_lag_list
+    df = find_best_theta(df)
+    df.to_csv('csvs/eeg_correlations_RRevoked4_cropped.csv')
+
+def find_best_theta(df):
+    max_theta_df_list = []
+    for i in range(0, len(df.index), 4):
+        tlcc_list = [abs(df.loc[i]['tlcc']),abs(df.loc[i+1]['tlcc']),abs(df.loc[i+2]['tlcc']),abs(df.loc[i+3]['tlcc'])]
+        max_theta = tlcc_list.index(max(tlcc_list))
+        max_theta_df_list.append(df.loc[[i+max_theta]])
+    new_df = pds.concat(max_theta_df_list)
+    return new_df
+
+def avg_freq(df):
+    file_list = []
+    subject_id = []
+    avg_list = []
+    total = 0
+    count = 0
+    for idx, row in df.iterrows():
+        if row['subject_freq']/120 == 0 and idx != 0:
+            file_list.append(row['node_region_filename'])
+            subject_id.append(row['subject_index'])
+            avg_list.append(total/count)
+            total = 0
+            count = 0
+        else:
+            total+=abs(row['tlcc'])
+            count+=1
+    file_list.append(row['node_region_filename'])
+    subject_id.append(row['subject_index'])
+    avg_list.append(total/count)
+    data_f = pds.DataFrame(
+        {'file': file_list,
+        'subject_id': subject_id,
+        'avg_corr': avg_list
+        })
+    return data_f
+
+def most_sig_freq(df):
+    file_list = []
+    subject_list = []
+    subject_freq = []
+    theta_list = []
+    tlcc_list = []
+    lag_list = []
+    for idx, row in df.iterrows():
+        if idx == 0:
+            sig_freq = row
+        elif row['subject_freq']/120 == 0 and idx != 0:
+            file_list.append(sig_freq['node_region_filename'])
+            subject_list.append(sig_freq['subject_index'])
+            subject_freq.append(sig_freq['subject_freq'])
+            theta_list.append(sig_freq['theta_freq'])
+            tlcc_list.append(sig_freq['tlcc'])
+            lag_list.append(sig_freq['lag'])
+            sig_freq = row
+        elif abs(row['tlcc']) > abs(sig_freq['tlcc']):
+            sig_freq = row
+        else:
+            continue
+    data_f = pds.DataFrame(
+        {'file': file_list,
+        'subject_id': subject_list,
+        'subject_freq': subject_freq,
+        'theta_freq': theta_list,
+        'tlcc': tlcc_list,
+        'lag': lag_list
+        }
+    )
+    return data_f
+
+def concat_csvs(df1, df2):
+    final_df = pds.concat([df1, df2])
+    return final_df.to_csv('csvs/combined_eeg_correlations_RRevoked4.csv', index=None)
+
 if __name__ == "__main__":
-    convert_dataset()
+    # convert_dataset()
+    # get_corr_data()
+    # crop_tlcc_data('csvs/eeg_correlations_RRevoked4.csv')
+    avg_freq(pds.read_csv('csvs/eeg_correlations_LNRevoked1_cropped.csv')).to_csv('csvs/eeg_correlations_LNRevoked1_avg.csv', index=None)
+    # concat_csvs(pds.read_csv('csvs/combined_eeg_correlations_RRevoked3.csv'), pds.read_csv('csvs/eeg_correlations_RRevoked4_sig_freq.csv'))
