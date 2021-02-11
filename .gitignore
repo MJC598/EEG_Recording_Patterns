@@ -9,6 +9,7 @@ __pycache__/
 
 matlab/
 csvs/
+numpys/
 
 # C extensions
 *.so

@@ -9,6 +9,7 @@ import train_ssm
 import csv
 import random
 import pandas as pds
+import jsons
 
 def make_stationary(dataset):
     '''Returns transformed dataset that is stationary.'''
@@ -250,31 +251,14 @@ def find_best_theta(df):
     new_df = pds.concat(max_theta_df_list)
     return new_df
 
-def avg_freq(df):
-    file_list = []
-    subject_id = []
-    avg_list = []
-    total = 0
-    count = 0
-    for idx, row in df.iterrows():
-        if row['subject_freq']/120 == 0 and idx != 0:
-            file_list.append(row['node_region_filename'])
-            subject_id.append(row['subject_index'])
-            avg_list.append(total/count)
-            total = 0
-            count = 0
-        else:
-            total+=abs(row['tlcc'])
-            count+=1
-    file_list.append(row['node_region_filename'])
-    subject_id.append(row['subject_index'])
-    avg_list.append(total/count)
-    data_f = pds.DataFrame(
-        {'file': file_list,
-        'subject_id': subject_id,
-        'avg_corr': avg_list
-        })
-    return data_f
+def convert_tlcc(df):
+    tlcc_df = df['tlcc'].to_list()
+    tlcc_list = []
+    for l in tlcc_df:
+        tlcc_vals = [float(val) for val in l.split(",")]
+        tlcc_list.append(tlcc_vals)
+    df['tlcc'] = tlcc_list
+    return df
 
 def most_sig_freq(df):
     file_list = []
@@ -311,11 +295,61 @@ def most_sig_freq(df):
 
 def concat_csvs(df1, df2):
     final_df = pds.concat([df1, df2])
-    return final_df.to_csv('csvs/combined_eeg_correlations_RRevoked4.csv', index=None)
+    return final_df.to_csv('csvs/combo_mean_eeg_correlations_RRevoked.csv', index=None)
+
+def save_np_out(df):
+    tlcc_list = []
+    np_df = df.to_numpy()
+    # print(np_df.shape)
+    for i in range(np_df.shape[0]):
+        test_arr = np.asarray(jsons.loads(np_df[i,4]))
+        # tlcc_list.append(np.mean(np.absolute(test_arr)))
+        tlcc_list.append(test_arr)
+    tlcc_arr = np.vstack(tlcc_list)
+    np_df = np.delete(np_df, 4, 1)
+    np_df = np.hstack((np_df, tlcc_arr))
+    # np_df[:,4] = np.asarray(tlcc_list)
+    # np_df = np_df.reshape((-1,135,120,4,1))
+    # print(np_df[0,:])
+    # print(np_df.shape)
+    np.save('numpys/eeg_correlations_RRevoked4.npy', np_df)
+
+def load_np(data):
+    mean_list = []
+    data = data.reshape(-1,120*4,5)
+    subject_id_total = []
+    file_list = data[:,0,0].tolist()
+    print(data.shape[0])
+    for i in range(data.shape[0]):
+        subject_id_total.append(i%135)
+        mean_list.append(np.mean(np.absolute(data[i,:,4])))
+    print(len(mean_list))
+    print(len(subject_id_total))
+    print(len(file_list))
+    data_f = pds.DataFrame(
+        {'file': file_list,
+        'subject_id': subject_id_total,
+        'means': mean_list
+        }
+    )
+    data_f.to_csv('csvs/eeg_correlations_RRevoked4_means.csv', index=None)
+
+def graph(data_file):
+    data = pds.read_csv(data_file, index_col=1)
+    print(data)
+    data.plot(kind='bar')
+    plt.ylabel('Averages')
+    plt.xlabel('Files')
+    plt.title('Title')
+    plt.show()
 
 if __name__ == "__main__":
     # convert_dataset()
     # get_corr_data()
     # crop_tlcc_data('csvs/eeg_correlations_RRevoked4.csv')
-    avg_freq(pds.read_csv('csvs/eeg_correlations_LNRevoked1_cropped.csv')).to_csv('csvs/eeg_correlations_LNRevoked1_avg.csv', index=None)
-    # concat_csvs(pds.read_csv('csvs/combined_eeg_correlations_RRevoked3.csv'), pds.read_csv('csvs/eeg_correlations_RRevoked4_sig_freq.csv'))
+    #avg_freq(pds.read_csv('csvs/eeg_correlations_LNRevoked1.csv'))#.to_csv('csvs/eeg_correlations_LNRevoked1_avg.csv', index=None)
+    # convert_tlcc(pds.read_csv('csvs/eeg_correlations_RRevoked4.csv')).to_csv('csvs/eeg_correlations_RRevoked4.csv', index=None)
+    save_np_out(pds.read_csv('csvs/eeg_correlations_RRevoked4.csv'))
+    # concat_csvs(pds.read_csv('csvs/combo_mean_eeg_correlations_RRevoked.csv'), pds.read_csv('csvs/eeg_correlations_RRevoked4_means.csv'))
+    # load_np(np.load('numpys/eeg_correlations_RRevoked4.npy', allow_pickle=True))
+    # graph('csvs/combo_mean_eeg_correlations_LNRevoked.csv')
