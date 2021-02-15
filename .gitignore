@@ -7,6 +7,8 @@ __pycache__/
 
 *.docx
 
+*.mat
+
 matlab/
 csvs/
 numpys/

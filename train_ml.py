@@ -2,12 +2,15 @@ import torch.nn as nn
 import numpy as np
 import torch
 from torch.utils.data import TensorDataset, DataLoader
+import scipy.io
+import random
+import pandas as pds
 
 class baselineRNN(nn.Module):
     def __init__(self,input_size,hidden_size,batch_size,batch_first):
         super(baselineRNN, self).__init__()
-        self.rnn1 = nn.RNN(input_size,hidden_size,batch_first=batch_first)
-        self.lin = nn.Linear(hidden_size,4)
+        self.rnn1 = nn.RNN(input_size,hidden_size,batch_first=batch_first,dropout=0.5)
+        self.lin = nn.Linear(hidden_size,1)
         self.h0 = torch.randn(1, batch_size, hidden_size)
 
     def forward(self, x):
@@ -19,10 +22,10 @@ class baselineRNN(nn.Module):
         return out
 
 class baselineLSTM(nn.Module):
-    def __init__(self,input_size,hidden_size,batch_size,batch_first):
+    def __init__(self,input_size,hidden_size,batch_size,batch_first,dropout=0.5):
         super(baselineLSTM, self).__init__()
-        self.rnn = nn.LSTM(input_size,hidden_size,batch_first=batch_first)
-        self.lin = nn.Linear(hidden_size,4)
+        self.rnn = nn.LSTM(input_size,hidden_size,batch_first=batch_first,dropout=dropout)
+        self.lin = nn.Linear(hidden_size,1)
         self.h0 = torch.randn(1, batch_size, hidden_size)
         self.c0 = torch.randn(1, batch_size, hidden_size)
 
@@ -35,13 +38,14 @@ class baselineLSTM(nn.Module):
         return out
 
 class baselineGRU(nn.Module):
-    def __init__(self,input_size,hidden_size,batch_size,batch_first):
+    def __init__(self,input_size,hidden_size,batch_size,batch_first,dropout=0.5):
         super(baselineGRU, self).__init__()
-        self.rnn = nn.GRU(input_size,hidden_size,batch_first=batch_first)
-        self.lin = nn.Linear(hidden_size,4)
+        self.rnn = nn.GRU(input_size,hidden_size,batch_first=batch_first,dropout=dropout)
+        self.lin = nn.Linear(hidden_size,1)
         self.h0 = torch.randn(1, batch_size, hidden_size)
 
     def forward(self, x):
+        # print(self.h0.shape)
         x, h_n  = self.rnn(x,self.h0)
 
         # take last cell output
@@ -83,8 +87,40 @@ def get_dataset(data_filepath):
 
     return dataset
 
-def train_model(model,save_filepath,training_loader,validation_loader):
+def get_data_from_mat(data_filepath):
+    training_data = []
+    training_labels = []
+    testing_data = []
+    testing_labels = []
+    data = scipy.io.loadmat(data_filepath)
+    # print(data.keys())
+    x = data['x']
+    y = data['y']
+    # print(x.shape)
+    # print(x[0,0,0,0,0,:])
+    random.seed(10)
+    full_indices = range(134)
+    training_indices = random.sample(full_indices, k=90)
+    for i in full_indices:
+        if i in training_indices:
+            training_data.append(x[i,0,:,0,0,:])
+            training_labels.append(y[i,2])
+        else:
+            testing_data.append(x[i,0,:,0,0,:])
+            testing_labels.append(y[i,2])
+    print(np.array(training_data).shape)
+    # print(x.shape)
+    # print(y.shape)
+    training_dataset = TensorDataset(torch.Tensor(np.array(training_data)), torch.Tensor(np.array(training_labels)))
+    testing_dataset = TensorDataset(torch.Tensor(np.array(testing_data)), torch.Tensor(np.array(testing_labels)))
+    return training_dataset, testing_dataset
 
+
+def train_model(model,save_filepath,training_loader,validation_loader):
+    
+    epochs_list = []
+    train_loss_list = []
+    val_loss_list = []
     training_len = len(training_loader.dataset)
     validation_len = len(validation_loader.dataset)
 
@@ -94,7 +130,7 @@ def train_model(model,save_filepath,training_loader,validation_loader):
     loss_func = nn.MSELoss()
 
     # training and testing
-    for epoch in range(100):
+    for epoch in range(1000):
 
         train_loss = 0.0
         val_loss = 0.0
@@ -106,9 +142,10 @@ def train_model(model,save_filepath,training_loader,validation_loader):
 
             running_loss = 0.0
             for i, (x, y) in enumerate(data_loaders[phase]):       
-    
+                x = x.permute(0, 2, 1)
+                # print(x.shape)
                 output = model(x)                              
-                loss = loss_func(output, y)                  
+                loss = loss_func(torch.squeeze(output), torch.squeeze(y))                  
                 optimizer.zero_grad()           
 
                 if phase == 'train':
@@ -126,27 +163,39 @@ def train_model(model,save_filepath,training_loader,validation_loader):
         # print('[%d, %5d] train loss: %.6f val loss: %.6f' % (epoch + 1, i + 1, train_loss/training_len, val_loss/validation_len))
         # shows total loss
         print('[%d, %5d] train loss: %.6f val loss: %.6f' % (epoch + 1, i + 1, train_loss, val_loss))
-    
+        epochs_list.append(epoch)
+        train_loss_list.append(train_loss)
+        val_loss_list.append(val_loss)
+
+    loss_df = pds.DataFrame(
+        {
+            'epoch': epochs_list,
+            'training loss': train_loss_list,
+            'validation loss': val_loss_list
+        }
+    )
+    loss_df.to_csv('loss_scores.csv')
     torch.save(model, save_filepath)
 
 if __name__ == "__main__":
-    input_size = 8
+    input_size = 2
     hidden_size = 64
     batch_first = True
-    batch_size = 52
+    batch_size = 2
     # model = baselineLSTM(input_size,hidden_size,batch_size,batch_first)
-    # model = baselineGRU(input_size,hidden_size,batch_size,batch_first)
-    model = baselineRNN(input_size,hidden_size,batch_size,batch_first)
+    model = baselineGRU(input_size,hidden_size,batch_size,batch_first)
+    # model = baselineRNN(input_size,hidden_size,batch_size,batch_first)
     # model = baselineFCNLSTM(input_size,hidden_size,batch_size,batch_first)
 
-    training_dataset = get_dataset('eeg_dataset_training2.npz')
+    training_dataset, validation_dataset = get_data_from_mat('matlab/FCz2latency.mat')
+    # training_dataset = get_dataset('eeg_dataset_training2.npz')
     training_loader = DataLoader(dataset=training_dataset,batch_size=batch_size,shuffle=True)
 
-    validation_dataset = get_dataset('eeg_dataset_testing2.npz')
+    # validation_dataset = get_dataset('eeg_dataset_testing2.npz')
     validation_loader = DataLoader(dataset=validation_dataset,batch_size=batch_size)
 
     # PATH = 'baselineLSTM.pth'
     # PATH = 'baselineGRU.pth'
-    PATH = 'baselineRNN.pth'
+    PATH = 'baselineGRU_Theta2Mean_Dropout.pth'
     # PATH = 'baselineFCNLSTM.pth'
     train_model(model,PATH,training_loader,validation_loader)
