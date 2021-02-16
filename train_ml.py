@@ -103,10 +103,10 @@ def get_data_from_mat(data_filepath):
     training_indices = random.sample(full_indices, k=90)
     for i in full_indices:
         if i in training_indices:
-            training_data.append(x[i,0,:,0,0,:])
+            training_data.append(x[i,0,:,0,1,:])
             training_labels.append(y[i,2])
         else:
-            testing_data.append(x[i,0,:,0,0,:])
+            testing_data.append(x[i,0,:,0,1,:])
             testing_labels.append(y[i,2])
     print(np.array(training_data).shape)
     # print(x.shape)
@@ -174,7 +174,7 @@ def train_model(model,save_filepath,training_loader,validation_loader):
             'validation loss': val_loss_list
         }
     )
-    loss_df.to_csv('loss_scores.csv')
+    loss_df.to_csv('LSTM_loss_scores.csv', index=None)
     torch.save(model, save_filepath)
 
 if __name__ == "__main__":
@@ -182,8 +182,8 @@ if __name__ == "__main__":
     hidden_size = 64
     batch_first = True
     batch_size = 2
-    # model = baselineLSTM(input_size,hidden_size,batch_size,batch_first)
-    model = baselineGRU(input_size,hidden_size,batch_size,batch_first)
+    model = baselineLSTM(input_size,hidden_size,batch_size,batch_first)
+    # model = baselineGRU(input_size,hidden_size,batch_size,batch_first)
     # model = baselineRNN(input_size,hidden_size,batch_size,batch_first)
     # model = baselineFCNLSTM(input_size,hidden_size,batch_size,batch_first)
 
@@ -196,6 +196,6 @@ if __name__ == "__main__":
 
     # PATH = 'baselineLSTM.pth'
     # PATH = 'baselineGRU.pth'
-    PATH = 'baselineGRU_Theta2Mean_Dropout.pth'
+    PATH = 'baselineLSTM_Theta2Mean_Dropout.pth'
     # PATH = 'baselineFCNLSTM.pth'
     train_model(model,PATH,training_loader,validation_loader)
