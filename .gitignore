@@ -12,6 +12,8 @@ __pycache__/
 matlab/
 csvs/
 numpys/
+models/
+losses/
 
 # C extensions
 *.so

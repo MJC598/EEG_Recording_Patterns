@@ -6,6 +6,9 @@ import scipy.io
 import random
 import pandas as pds
 
+from scipy import stats
+from sklearn.metrics import r2_score
+
 class baselineRNN(nn.Module):
     def __init__(self,input_size,hidden_size,batch_size,batch_first):
         super(baselineRNN, self).__init__()
@@ -40,7 +43,7 @@ class baselineLSTM(nn.Module):
 class baselineGRU(nn.Module):
     def __init__(self,input_size,hidden_size,batch_size,batch_first,dropout=0.5):
         super(baselineGRU, self).__init__()
-        self.rnn = nn.GRU(input_size,hidden_size,batch_first=batch_first,dropout=dropout)
+        self.rnn = nn.GRU(input_size,hidden_size,num_layers=1,batch_first=batch_first,dropout=dropout)
         self.lin = nn.Linear(hidden_size,1)
         self.h0 = torch.randn(1, batch_size, hidden_size)
 
@@ -93,21 +96,23 @@ def get_data_from_mat(data_filepath):
     testing_data = []
     testing_labels = []
     data = scipy.io.loadmat(data_filepath)
-    # print(data.keys())
-    x = data['x']
-    y = data['y']
-    # print(x.shape)
+    print(data.keys())
+    print(data['x'].shape)
+    x = data['x'].reshape((134, -1, 251))
+    y = data['WSLS']
+    print(x.shape)
+    print(y.shape)
     # print(x[0,0,0,0,0,:])
     random.seed(10)
     full_indices = range(134)
     training_indices = random.sample(full_indices, k=90)
     for i in full_indices:
         if i in training_indices:
-            training_data.append(x[i,0,:,0,1,:])
-            training_labels.append(y[i,2])
+            training_data.append(x[i,:,:])
+            training_labels.append(y[i,0])
         else:
-            testing_data.append(x[i,0,:,0,1,:])
-            testing_labels.append(y[i,2])
+            testing_data.append(x[i,:,:])
+            testing_labels.append(y[i,0])
     print(np.array(training_data).shape)
     # print(x.shape)
     # print(y.shape)
@@ -130,7 +135,7 @@ def train_model(model,save_filepath,training_loader,validation_loader):
     loss_func = nn.MSELoss()
 
     # training and testing
-    for epoch in range(1000):
+    for epoch in range(20):
 
         train_loss = 0.0
         val_loss = 0.0
@@ -145,7 +150,7 @@ def train_model(model,save_filepath,training_loader,validation_loader):
                 x = x.permute(0, 2, 1)
                 # print(x.shape)
                 output = model(x)                              
-                loss = loss_func(torch.squeeze(output), torch.squeeze(y))                  
+                loss = loss_func(torch.squeeze(output), torch.squeeze(y))               
                 optimizer.zero_grad()           
 
                 if phase == 'train':
@@ -163,6 +168,10 @@ def train_model(model,save_filepath,training_loader,validation_loader):
         # print('[%d, %5d] train loss: %.6f val loss: %.6f' % (epoch + 1, i + 1, train_loss/training_len, val_loss/validation_len))
         # shows total loss
         print('[%d, %5d] train loss: %.6f val loss: %.6f' % (epoch + 1, i + 1, train_loss, val_loss))
+        # print(np.squeeze(np.transpose(output.detach().cpu().numpy())))
+        # print(y.detach().cpu().numpy())
+        # print(stats.spearmanr(np.squeeze(np.transpose(output.detach().cpu().numpy())), y.detach().cpu().numpy()))
+        # print(r2_score(y.detach().cpu().numpy(), np.squeeze(np.transpose(output.detach().cpu().numpy()))))
         epochs_list.append(epoch)
         train_loss_list.append(train_loss)
         val_loss_list.append(val_loss)
@@ -174,20 +183,39 @@ def train_model(model,save_filepath,training_loader,validation_loader):
             'validation loss': val_loss_list
         }
     )
-    loss_df.to_csv('LSTM_loss_scores.csv', index=None)
+    loss_df.to_csv('LSTM1_loss_scores_wsls.csv', index=None)
     torch.save(model, save_filepath)
 
+def r2_score_eval(model, testing_dataloader):
+    output_list = []
+    labels_list = []
+    for i, (x, y) in enumerate(testing_dataloader):       
+        x = x.permute(0, 2, 1)
+        # print(x.shape)
+        output = model(x) 
+        output_list.append(np.squeeze(np.transpose(output.detach().cpu().numpy())))
+        labels_list.append(y.detach().cpu().numpy())
+    output_list = np.hstack(output_list)
+    labels_list = np.hstack(labels_list)
+    # print(np.hstack(output_list))
+    # print(np.hstack(labels_list))
+    print(r2_score(labels_list, output_list))
+
 if __name__ == "__main__":
-    input_size = 2
-    hidden_size = 64
+    input_size = 60
+    hidden_size = 251
     batch_first = True
     batch_size = 2
-    model = baselineLSTM(input_size,hidden_size,batch_size,batch_first)
-    # model = baselineGRU(input_size,hidden_size,batch_size,batch_first)
+    model = baselineLSTM(input_size,hidden_size,batch_size,batch_first,0)
+    # model = baselineGRU(input_size,hidden_size,batch_size,batch_first,0)
     # model = baselineRNN(input_size,hidden_size,batch_size,batch_first)
     # model = baselineFCNLSTM(input_size,hidden_size,batch_size,batch_first)
-
-    training_dataset, validation_dataset = get_data_from_mat('matlab/FCz2latency.mat')
+    #['x', 'y', 'subject_id', 'channel', 'reward_type', 'power_type', 'frequency', 'time']
+    # training_dataset, validation_dataset = get_data_from_mat('matlab/FCz2latency.mat')
+    #['RT', 'WSLS', 'x', 'subject_id', 'channels', 'rew_type', 'pow_type', 'freq_bands', 't_window', 'fs']
+    #input: subj, channel, rew_type, power, freq, time
+    #output: mean reward, mean no reward, difference, std reward, std no reward
+    training_dataset, validation_dataset = get_data_from_mat('matlab/FCzC3C42WSLS.mat')
     # training_dataset = get_dataset('eeg_dataset_training2.npz')
     training_loader = DataLoader(dataset=training_dataset,batch_size=batch_size,shuffle=True)
 
@@ -196,6 +224,10 @@ if __name__ == "__main__":
 
     # PATH = 'baselineLSTM.pth'
     # PATH = 'baselineGRU.pth'
-    PATH = 'baselineLSTM_Theta2Mean_Dropout.pth'
+    PATH = 'baselineLSTM_full_wsls.pth'
     # PATH = 'baselineFCNLSTM.pth'
     train_model(model,PATH,training_loader,validation_loader)
+    model = torch.load(PATH)
+    model.eval()
+    r2_score_eval(model, training_loader)
+    r2_score_eval(model, validation_loader)
