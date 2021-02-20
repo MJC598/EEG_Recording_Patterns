@@ -139,6 +139,7 @@ def train_model(model,save_filepath,training_loader,validation_loader):
 
         train_loss = 0.0
         val_loss = 0.0
+        temp_loss = 10000.0
         for phase in ['train', 'val']:
             if phase == 'train':
                 model.train(True)
@@ -168,6 +169,9 @@ def train_model(model,save_filepath,training_loader,validation_loader):
         # print('[%d, %5d] train loss: %.6f val loss: %.6f' % (epoch + 1, i + 1, train_loss/training_len, val_loss/validation_len))
         # shows total loss
         print('[%d, %5d] train loss: %.6f val loss: %.6f' % (epoch + 1, i + 1, train_loss, val_loss))
+        if val_loss < temp_loss:
+            torch.save(model, save_filepath)
+            temp_loss = val_loss
         # print(np.squeeze(np.transpose(output.detach().cpu().numpy())))
         # print(y.detach().cpu().numpy())
         # print(stats.spearmanr(np.squeeze(np.transpose(output.detach().cpu().numpy())), y.detach().cpu().numpy()))
@@ -184,7 +188,7 @@ def train_model(model,save_filepath,training_loader,validation_loader):
         }
     )
     loss_df.to_csv('LSTM1_loss_scores_wsls.csv', index=None)
-    torch.save(model, save_filepath)
+    # torch.save(model, save_filepath)
 
 def r2_score_eval(model, testing_dataloader):
     output_list = []
@@ -216,6 +220,7 @@ if __name__ == "__main__":
     #input: subj, channel, rew_type, power, freq, time
     #output: mean reward, mean no reward, difference, std reward, std no reward
     training_dataset, validation_dataset = get_data_from_mat('matlab/FCzC3C42WSLS.mat')
+    # training_dataset, validation_dataset = get_data_from_mat('matlab/FCz2singleTrialRT.mat')
     # training_dataset = get_dataset('eeg_dataset_training2.npz')
     training_loader = DataLoader(dataset=training_dataset,batch_size=batch_size,shuffle=True)
 
