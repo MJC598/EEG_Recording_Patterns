@@ -5,6 +5,7 @@ async-generator==1.10
 attrs==20.2.0
 backcall==0.2.0
 bleach==3.2.1
+bmtk==0.0.8
 cachetools==4.1.1
 certifi==2020.6.20
 cffi==1.14.3
@@ -30,6 +31,7 @@ ipywidgets==7.5.1
 jedi==0.17.2
 Jinja2==2.11.2
 joblib==0.17.0
+jsons==1.4.0
 jsonschema==3.2.0
 jupyter==1.0.0
 jupyter-client==6.1.7
@@ -43,11 +45,13 @@ Markdown==3.3.2
 MarkupSafe==1.1.1
 matplotlib==3.3.2
 mistune==0.8.4
+mpmath==1.1.0
 nbclient==0.5.1
 nbconvert==6.0.7
 nbformat==5.0.8
 nest-asyncio==1.4.1
 networkx==2.5
+NEURON==7.8.2
 notebook==6.1.4
 numpy==1.18.5
 oauthlib==3.1.0
@@ -87,6 +91,7 @@ Send2Trash==1.5.0
 six==1.15.0
 sklearn==0.0
 statsmodels==0.12.1
+sympy==1.7.1
 tensorboard==2.3.0
 tensorboard-plugin-wit==1.7.0
 tensorflow==2.3.1
@@ -101,6 +106,7 @@ torchvision==0.8.1
 tornado==6.0.4
 traitlets==5.0.5
 typing-extensions==3.7.4.3
+typish==1.9.1
 urllib3==1.25.11
 wcwidth==0.2.5
 webencodings==0.5.1
