@@ -10,11 +10,13 @@ import time
 from scipy import stats
 from sklearn.metrics import r2_score
 
+INDEX = 35
+
 class baselineRNN(nn.Module):
     def __init__(self,input_size,hidden_size,batch_size,batch_first):
         super(baselineRNN, self).__init__()
         self.rnn1 = nn.RNN(input_size,hidden_size,batch_first=batch_first,dropout=0.5)
-        self.lin = nn.Linear(hidden_size,2)
+        self.lin = nn.Linear(hidden_size,1)
         self.h0 = torch.randn(1, batch_size, hidden_size)
 
     def forward(self, x):
@@ -29,7 +31,7 @@ class baselineLSTM(nn.Module):
     def __init__(self,input_size,hidden_size,batch_size,batch_first,dropout=0.5,num_layers=1):
         super(baselineLSTM, self).__init__()
         self.rnn = nn.LSTM(input_size,hidden_size,num_layers=num_layers,batch_first=batch_first,dropout=dropout)
-        self.lin = nn.Linear(hidden_size,2)
+        self.lin = nn.Linear(hidden_size,1)
         self.h0 = torch.randn(num_layers, batch_size, hidden_size)
         self.c0 = torch.randn(num_layers, batch_size, hidden_size)
 
@@ -45,7 +47,7 @@ class baselineGRU(nn.Module):
     def __init__(self,input_size,hidden_size,batch_size,batch_first,dropout=0.5,num_layers=1):
         super(baselineGRU, self).__init__()
         self.rnn = nn.GRU(input_size,hidden_size,num_layers=num_layers,batch_first=batch_first,dropout=dropout)
-        self.lin = nn.Linear(hidden_size,2)
+        self.lin = nn.Linear(hidden_size,1)
         self.h0 = torch.randn(num_layers, batch_size, hidden_size)
 
     def forward(self, x):
@@ -91,35 +93,40 @@ def get_dataset(data_filepath):
 
     return dataset
 
-def get_data_from_mat(data_filepath):
+def get_data_from_mat(data_filepath, second_data=None):
     training_data = []
     training_labels = []
     testing_data = []
     testing_labels = []
     data = scipy.io.loadmat(data_filepath)
     print(data.keys())
+    if(second_data):
+        data2 = scipy.io.loadmat(second_data)
+        print(data2.keys())
     # print(data['Cond'][0,0].shape)
     # print(data['Cond'][0,0])
-    # print(data['X'].shape)
-    print(data['X'][0,1].shape)
+    print(data['RP'].shape)
+    # print(data['X'][0,1].shape)
     # x = data['X'].reshape((134, -1, 251))
-    x = data['X'][0,0].reshape((12562, -1, 251))
+    # x = data['X'][0,0].reshape((12562, -1, 251))
     # x = data['X'][0,1][:,0,1,25:150].reshape((12035, -1, 125))
+    x = data['RP'][:,INDEX,25:150].reshape((134,1,125))
     print(x.shape)
-    # y = data['WSLS']
+    y = data2['WSLS'][:,1]
+    print(y.shape)
     # print(data['RT_long'][0,1].shape)
-    y = np.squeeze(data['LR'][0,1])
+    # y = np.squeeze(data['LR'][0,1])
     # print(y)
-    y_oh = np.zeros((y.size, y.max()+1))
-    y_oh[np.arange(y.size),y] = 1
-    y = y_oh
+    # y_oh = np.zeros((y.size, y.max()+1))
+    # y_oh[np.arange(y.size),y] = 1
+    # y = y_oh
     # print(y_oh)
     # print(x.shape)
     # print(y.shape)
     # print(x[0,0,0,0,0,:])
     random.seed(10)
-    full_indices = range(12035)
-    training_indices = random.sample(full_indices, k=11008)
+    full_indices = range(134)
+    training_indices = random.sample(full_indices, k=104)
     for i in full_indices:
         if i in training_indices:
             training_data.append(x[i,:,:])
@@ -135,7 +142,7 @@ def get_data_from_mat(data_filepath):
     # print(y.shape)
     # print(training_labels)
     training_dataset = TensorDataset(torch.Tensor(np.array(training_data)), torch.Tensor(np.array(training_labels)))
-    testing_dataset = TensorDataset(torch.Tensor(np.array(testing_data)[:1024,:,:]), torch.Tensor(np.array(testing_labels)[:1024]))
+    testing_dataset = TensorDataset(torch.Tensor(np.array(testing_data)), torch.Tensor(np.array(testing_labels)))
     return training_dataset, testing_dataset
 
 
@@ -149,11 +156,11 @@ def train_model(model,save_filepath,training_loader,validation_loader):
 
     data_loaders = {"train": training_loader, "val": validation_loader}
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    loss_func = nn.CrossEntropyLoss() #nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+    loss_func = nn.MSELoss() #nn.CrossEntropyLoss()
     total_start = time.time()
     # training and testing
-    for epoch in range(50):
+    for epoch in range(20):
         start = time.time()
         train_loss = 0.0
         val_loss = 0.0
@@ -169,13 +176,13 @@ def train_model(model,save_filepath,training_loader,validation_loader):
             for i, (x, y) in enumerate(data_loaders[phase]):       
                 x = x.permute(0, 2, 1)
                 output = model(x)                              
-                # print(output)
-                # print(y)
-                # loss = loss_func(torch.squeeze(output), torch.squeeze(y))               
-                loss = loss_func(output, torch.max(y, 1)[1])
+                # print(torch.squeeze(output).shape)
+                # print(torch.squeeze(y).shape)
+                loss = loss_func(torch.squeeze(output), torch.squeeze(y))               
+                # loss = loss_func(output, torch.max(y, 1)[1])
                 # print(torch.max(output, 1)[1])
                 # print(torch.max(y, 1)[1])
-                correct += (torch.max(output, 1)[1] == torch.max(y, 1)[1]).float().sum()
+                # correct += (torch.max(output, 1)[1] == torch.max(y, 1)[1]).float().sum()
                 optimizer.zero_grad()           
 
                 if phase == 'train':
@@ -193,7 +200,7 @@ def train_model(model,save_filepath,training_loader,validation_loader):
         # print('[%d, %5d] train loss: %.6f val loss: %.6f' % (epoch + 1, i + 1, train_loss/training_len, val_loss/validation_len))
         # shows total loss
         end = time.time()
-        print('Accuracy: %.6f' % (correct/12035))
+        # print('Accuracy: %.6f' % (correct/12035))
         print('[%d, %5d] train loss: %.6f val loss: %.6f' % (epoch + 1, i + 1, train_loss, val_loss))
         print(end - start)
         if val_loss < temp_loss:
@@ -215,7 +222,7 @@ def train_model(model,save_filepath,training_loader,validation_loader):
             'validation loss': val_loss_list
         }
     )
-    loss_df.to_csv('GRU_trial_loss_scores_fcz_lr2.csv', index=None)
+    loss_df.to_csv('losses/GRU_subject_' + str(INDEX) + 'RP_to_LoseShiftProb.csv', index=None)
     # torch.save(model, save_filepath)
 
 def r2_score_eval(model, testing_dataloader):
@@ -234,10 +241,11 @@ def r2_score_eval(model, testing_dataloader):
     print(r2_score(labels_list, output_list))
 
 if __name__ == "__main__":
-    input_size = 25
-    hidden_size = 251#125
+    print(INDEX)
+    input_size = 1
+    hidden_size = 125
     batch_first = True
-    batch_size = 32
+    batch_size = 2
     # model = baselineLSTM(input_size,hidden_size,batch_size,batch_first,0)
     # model = baselineGRU(input_size,hidden_size,batch_size,batch_first,0.5,3)
     model = baselineGRU(input_size,hidden_size,batch_size,batch_first,0,1)
@@ -249,7 +257,7 @@ if __name__ == "__main__":
     #input: subj, channel, rew_type, power, freq, time
     #output: mean reward, mean no reward, difference, std reward, std no reward
     # training_dataset, validation_dataset = get_data_from_mat('matlab/FCzC3C42WSLS.mat')
-    training_dataset, validation_dataset = get_data_from_mat('matlab/FCz2singleTrialRT.mat')
+    training_dataset, validation_dataset = get_data_from_mat('matlab/ERP_RP.mat', 'matlab/FCzC3C42WSLS.mat')
     # training_dataset = get_dataset('eeg_dataset_training2.npz')
     training_loader = DataLoader(dataset=training_dataset,batch_size=batch_size,shuffle=True)
 
@@ -258,7 +266,7 @@ if __name__ == "__main__":
 
     # PATH = 'baselineLSTM.pth'
     # PATH = 'baselineGRU.pth'
-    PATH = 'baselineGRU_trial_fcz_lr2.pth'
+    PATH = 'models/GRU_subject_' + str(INDEX) + 'RP_to_LoseShiftProb.pth'
     # PATH = 'baselineFCNLSTM.pth'
     train_model(model,PATH,training_loader,validation_loader)
     model = torch.load(PATH)
